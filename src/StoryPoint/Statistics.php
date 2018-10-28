@@ -40,7 +40,9 @@ class Statistics
         $results = $this->appendToggleTimeEntriesToJiraTasksInfo($jiraIssueIdsOccurredInToggl, $results);
         $grandTotalDataTable = $this->calculateStatistics($results);
 
-        $grandTotalDataTable = $this->injectStoryPointAveragesForEachStoryPointSizeIntoStatistics($grandTotalDataTable);
+        // Ignoring this because it makes problems when we deal with the single issue that has no Toggl time entries yet.
+        // @TODO: Think if we need this line to be uncommented, it seems it is redundant here anyway..
+        //$grandTotalDataTable = $this->injectStoryPointAveragesForEachStoryPointSizeIntoStatistics($grandTotalDataTable);
 
         return $grandTotalDataTable;
 
@@ -73,7 +75,7 @@ class Statistics
      * @throws JiraException
      * @throws \JsonMapper_Exception
      */
-    private function getJiraTasksInfo($jiraIssueIdsMentioned, ?array $issueStatusesToInclude = null, bool $includeParentIssues = true)
+    private function getJiraTasksInfo(array $jiraIssueIdsMentioned, ?array $issueStatusesToInclude = null, bool $includeParentIssues = true): array
     {
         $results = [];
 
@@ -220,7 +222,7 @@ class Statistics
      * @param $grandTotalDataTable
      * @return mixed
      */
-    private function injectStoryPointAveragesForEachStoryPointSizeIntoStatistics($grandTotalDataTable)
+    private function injectStoryPointAveragesForEachStoryPointSizeIntoStatistics(array $grandTotalDataTable): array
     {
         // Sort issues so the very latest one appears the first one
         uasort($grandTotalDataTable['issues'], function ($a, $b) {
