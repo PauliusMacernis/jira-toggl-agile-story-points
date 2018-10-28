@@ -15,9 +15,9 @@ What is the outcome of Planing poker? The main one in this case is the scope of 
 # Jira
 Giving story point values in Jira is the most important part here.
 
-#Toggl
+# Toggl
 When you enter your time in Toggl time tracker, you have to enter the issue identifier key. It looks something like this in Jira "AP-108" and use it in front of every time entry in Toggl. For example, use this time entry title in Toggl time tracking to refer to Jira issue: "AP-108 Optionally may place some short info on the task too".
 
-#Google
+# Google
 Some tables are pre-made so you can copy-paste them into Google sheets (or other system) and enrich the data tables given with some visual diagrams, etc.
  
