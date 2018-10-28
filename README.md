@@ -5,7 +5,7 @@ Now it's the time to adopt Agile, or at least the one very good part of it - the
 
 # Agile story points
 It all begins when the whole team meets together and plays Planning poker on each of issues in Jira.   
-What is the outcome of Planing poker? The main one in this case is the scope of the issue written in the square brackets in front of the issue name in Jira.  
+What is the outcome of Planing poker? The main one in this case is the scope of the issue written in the square brackets in front of the issue name in Jira. Couple of examples:  
  * "[0.5] Quite easily resolvable issue, up to half of an hour is needed and it's done, no worries, all looks clear."  
  * "[1] May take 1-2 hours of intensive non-interruptible work until it is done, most of the issue is pretty clear."
  * "[2] May take 2-4 hours of intensive non-interruptible work until it is done, some unknown pieces exists but it is easily solvable."
