@@ -1,0 +1,13 @@
+{
+  "require": {
+    "php": "~7.2",
+    "lesstif/php-jira-rest-client": "^1.32",
+    "morningtrain/toggl-api": "^1.0",
+    "ext-json": "*"
+  },
+  "autoload": {
+    "psr-0": {
+      "": "src/"
+    }
+  }
+}
