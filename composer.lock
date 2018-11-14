@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "be2704db182983421007a1d10472624c",
+    "content-hash": "b256e1b8186f10926351c801a00abd52",
     "packages": [
         {
             "name": "guzzlehttp/guzzle",
@@ -189,16 +189,16 @@
         },
         {
             "name": "lesstif/php-jira-rest-client",
-            "version": "1.33.0",
+            "version": "1.33.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/lesstif/php-jira-rest-client.git",
-                "reference": "112733d69ebce33295681354b463c6f0630c2e55"
+                "reference": "bbdd25e4ecfd1fe9123078a943ab1edf014d1745"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/lesstif/php-jira-rest-client/zipball/112733d69ebce33295681354b463c6f0630c2e55",
-                "reference": "112733d69ebce33295681354b463c6f0630c2e55",
+                "url": "https://api.github.com/repos/lesstif/php-jira-rest-client/zipball/bbdd25e4ecfd1fe9123078a943ab1edf014d1745",
+                "reference": "bbdd25e4ecfd1fe9123078a943ab1edf014d1745",
                 "shasum": ""
             },
             "require": {
@@ -245,20 +245,20 @@
                 "jira-rest",
                 "rest"
             ],
-            "time": "2018-10-24T15:22:02+00:00"
+            "time": "2018-11-02T11:18:12+00:00"
         },
         {
             "name": "monolog/monolog",
-            "version": "1.23.0",
+            "version": "1.24.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Seldaek/monolog.git",
-                "reference": "fd8c787753b3a2ad11bc60c063cff1358a32a3b4"
+                "reference": "bfc9ebb28f97e7a24c45bdc3f0ff482e47bb0266"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Seldaek/monolog/zipball/fd8c787753b3a2ad11bc60c063cff1358a32a3b4",
-                "reference": "fd8c787753b3a2ad11bc60c063cff1358a32a3b4",
+                "url": "https://api.github.com/repos/Seldaek/monolog/zipball/bfc9ebb28f97e7a24c45bdc3f0ff482e47bb0266",
+                "reference": "bfc9ebb28f97e7a24c45bdc3f0ff482e47bb0266",
                 "shasum": ""
             },
             "require": {
@@ -323,7 +323,7 @@
                 "logging",
                 "psr-3"
             ],
-            "time": "2017-06-19T01:22:40+00:00"
+            "time": "2018-11-05T09:00:11+00:00"
         },
         {
             "name": "morningtrain/toggl-api",

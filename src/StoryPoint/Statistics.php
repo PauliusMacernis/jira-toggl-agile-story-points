@@ -7,6 +7,7 @@ namespace StoryPoint;
 use JiraRestApi\Issue\IssueService;
 use JiraRestApi\JiraException;
 use MorningTrain\TogglApi\TogglApi;
+use OfficialWorkingTime\Lt\BuhalteriamsLt;
 use Toggl\TogglTimeEntry;
 
 
@@ -248,15 +249,57 @@ class Statistics
         $jiraIssueIdsOccurredInToggl = [];
         foreach ($togglTimeEntries as $togglTimeEntry) {
             $jiraIssueKeyFromToggl = TogglTimeEntry::getJiraIssueId($togglTimeEntry);
+            // Case: No jira issue number detected in the time entry
             if (empty($jiraIssueKeyFromToggl)) {
                 continue;
             }
+            // Case: If the method was asked to return info on particular issue only then all other issues info is ignored.
             if ($jiraIssueKeyFromUser !== null && $jiraIssueKeyFromUser !== $jiraIssueKeyFromToggl) {
                 continue;
             }
-            $jiraIssueIdsOccurredInToggl[TogglTimeEntry::getJiraIssueId($togglTimeEntry)]['items'][$togglTimeEntry->id] = $togglTimeEntry;
+            $jiraIssueIdsOccurredInToggl[$jiraIssueKeyFromToggl]['items'][$togglTimeEntry->id] = $togglTimeEntry;
         }
         return $jiraIssueIdsOccurredInToggl;
+    }
+
+
+    public function getToggleTimeEntriesByWeekSummedUp(): array
+    {
+        $toggl = new TogglApi(getenv('TOGGL_API_TOKEN'));
+        $togglTimeEntries = $toggl->getTimeEntriesInRange(getenv('TOGGL_ENTRIES_FROM'), getenv('TOGGL_ENTRIES_TO'));
+
+        // Filter Toggl time entries
+        $tasksLoggedInToggl = [];
+        foreach ($togglTimeEntries as $togglTimeEntry) {
+
+            $from = new \DateTime($togglTimeEntry->start);
+
+            // Finding earliest and latest points in the week of the time entry
+            $earliestOfTheWeek = $this->getEarliestOfTheWeek($from);
+            $latestOfTheWeek = $this->getLatestOfTheWeek($from);
+            $key = sprintf('%s - %s', $earliestOfTheWeek->format('Y-m-d'), $latestOfTheWeek->format('Y-m-d'));
+
+            if(!isset($tasksLoggedInToggl[$key])) {
+                $tasksLoggedInToggl[$key]['items'] = [];
+                $tasksLoggedInToggl[$key]['total_seconds'] = 0;
+                $tasksLoggedInToggl[$key]['total_minutes'] = 0;
+                $tasksLoggedInToggl[$key]['earliestOfTheWeek'] = $earliestOfTheWeek;    // Monday (earliest)
+                $tasksLoggedInToggl[$key]['latestOfTheWeek'] = $latestOfTheWeek;        // Sunday (latest)
+                $tasksLoggedInToggl[$key]['officialWorkingDaysLt'] = $this->getOfficialWorkingDaysLt($earliestOfTheWeek, $latestOfTheWeek);   // Official working days in Lithuania
+                $tasksLoggedInToggl[$key]['officialWorkingHoursLt'] = $this->getOfficialWorkingHoursLt($earliestOfTheWeek, $latestOfTheWeek);  // Official working hours in Lithuania
+            }
+
+            // Actual items
+            $tasksLoggedInToggl[$key]['items'][$togglTimeEntry->id] = $togglTimeEntry;
+
+            // Total time
+            // TODO: May seconds reach the level to overflow?
+            $tasksLoggedInToggl[$key]['total_seconds'] += $togglTimeEntry->duration;
+            $tasksLoggedInToggl[$key]['total_minutes'] += round($togglTimeEntry->duration / 60, 0);
+        }
+
+        return $tasksLoggedInToggl;
+
     }
 
     /**
@@ -272,5 +315,65 @@ class Statistics
             $jql = 'issuekey in ("' . implode('","', $jiraIssueIdsMentionedInChunk) . '") AND status IN ("' . implode('","', $issueStatusesToInclude) . '")';
         }
         return $jql;
+    }
+
+    /**
+     * Gets the Mondays 00:00:00 date time of the same year
+     * or the earliest date of this year if the year has changed this week
+     * TODO: A task may be longer than a year? :D
+     *
+     * @return \DateTime  ISO-8601 week number of year, weeks starting on Monday
+     * @throws \Exception
+     */
+    private function getEarliestOfTheWeek(\DateTime $dateTime): \DateTime
+    {
+        $dateTimeMonday00 = new \DateTime($dateTime->format('Y-m-d 00:00:00'), $dateTime->getTimezone());
+
+        $year = (int)$dateTime->format('Y');
+        if((int)$dateTime->format('n') === 12 && (int)$dateTime->format('W') === 1) {
+            // new year, so +1 year
+            $year++;
+        }
+
+        $dateTimeMonday00->setISODate($year, $dateTime->format('W'), 1);
+
+        return $dateTimeMonday00;
+    }
+
+    /**
+     * Gets thethe latest DateTime of the week in the year
+     * TODO: A task may be longer than a year? :D
+     *
+     * @param \DateTime $dateTime
+     * @return \DateTime
+     * @throws \Exception
+     */
+    private function getLatestOfTheWeek(\DateTime $dateTime): \DateTime
+    {
+        $dateTimeSundayLatest = new \DateTime($dateTime->format('Y-m-d 23:59:59'), $dateTime->getTimezone());
+
+        $year = $dateTime->format('Y');
+        if((int)$dateTime->format('n') === 12 && (int)$dateTime->format('W') === 1) {
+            // new year, so +1 year
+            $year++;
+        }
+
+        // Saturday (not sunday) because sunday (0) would give us sunday of the previous week, not the current one. This is unacceptable while in Europe :)
+        $dateTimeSundayLatest->setISODate($year, $dateTime->format('W'), 6);
+        $dateTimeSundayLatest->add(new \DateInterval('P1D'));
+
+        return $dateTimeSundayLatest;
+    }
+
+    private function getOfficialWorkingDaysLt(\DateTime $earliestOfTheWeek, \DateTime $latestOfTheWeek)
+    {
+        $buhalteriamsLt = new BuhalteriamsLt();
+        return $buhalteriamsLt->getOfficialWorkingDays($earliestOfTheWeek, $latestOfTheWeek);
+    }
+
+    private function getOfficialWorkingHoursLt(\DateTime $earliestOfTheWeek, \DateTime $latestOfTheWeek)
+    {
+        $buhalteriamsLt = new BuhalteriamsLt();
+        return $buhalteriamsLt->getOfficialWorkingHours($earliestOfTheWeek, $latestOfTheWeek);
     }
 }

@@ -3,6 +3,7 @@
     "php": "~7.2",
     "lesstif/php-jira-rest-client": "^1.32",
     "morningtrain/toggl-api": "^1.0",
+    "guzzlehttp/guzzle": "~6.0",
     "ext-json": "*"
   },
   "autoload": {
