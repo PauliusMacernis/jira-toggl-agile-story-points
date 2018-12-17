@@ -21,12 +21,10 @@ class Statistics
     }
 
 
-    public function getStatisticsData(?array $jiraStatusesToInclude = null, ?bool $includeParentIssues = true)
+    public function getStatisticsData(?array $jiraStatusesToInclude = null, ?bool $includeParentIssues = true, bool $acceptItemsWithoutTogglDuration = false, bool $acceptItemsWithoutJiraStoryPoints = false)
     {
-        $jiraIssueIdsOccurredInToggl = $this->getToggleTimeEntriesThatHaveJiraIssueKeyMentioned();
-        $results = $this->getJiraTasksInfo(array_keys($jiraIssueIdsOccurredInToggl), $jiraStatusesToInclude, $includeParentIssues);
-        $results = $this->appendToggleTimeEntriesToJiraTasksInfo($jiraIssueIdsOccurredInToggl, $results);
-        $grandTotalDataTable = $this->calculateStatistics($results);
+        $results = $this->getDataFromTogglAndJira($jiraStatusesToInclude, $includeParentIssues);
+        $grandTotalDataTable = $this->calculateStatistics($results, $acceptItemsWithoutTogglDuration, $acceptItemsWithoutJiraStoryPoints);
 
         $grandTotalDataTable = $this->injectStoryPointAveragesForEachStoryPointSizeIntoStatistics($grandTotalDataTable);
 
@@ -59,6 +57,10 @@ class Statistics
 
             if (count($storyPointsAverageItem['startMin'])) {
                 $a = array_filter($storyPointsAverageItem['startMin']);
+                if(count($a) === 0) {
+                    $storyPointsAverageItem['avg'] = null;
+                    continue;
+                }
                 $storyPointsAverageItem['avg'] = array_sum($a) / count($a);
             }
         }
@@ -124,6 +126,9 @@ class Statistics
     {
         foreach ($jiraIssueIdsOccurredInToggl as $jiraIssueId => $timeEntriesFromToggl) {
             foreach ($timeEntriesFromToggl['items'] as $togglTimeEntry) {
+
+                $duration = $this->getDuration($togglTimeEntry);
+
                 if (!isset($results[$jiraIssueId])) {
                     $results[$jiraIssueId] = [];
                 }
@@ -133,21 +138,30 @@ class Statistics
                 if (!isset($results[$jiraIssueId]['Toggl']['duration'])) {
                     $results[$jiraIssueId]['Toggl']['duration'] = 0;
                 }
-                $results[$jiraIssueId]['Toggl']['duration'] += $togglTimeEntry->duration;
+                $results[$jiraIssueId]['Toggl']['duration'] += $duration;
+
+                $stopDateTime = null;
+                if(property_exists($togglTimeEntry, 'stop')) {
+                    $stopDateTime = $togglTimeEntry->stop;
+                }
+
+                if($stopDateTime === null && property_exists($togglTimeEntry, 'at')) {
+                    $stopDateTime = $togglTimeEntry->at;
+                }
+
+                if($stopDateTime === null) {
+                    throw new \RuntimeException(sprintf('End time not found. Jira issue: %s, Toggl time entry id: %s', $jiraIssueId, $togglTimeEntry->id));
+                }
 
                 $results[$jiraIssueId]['Toggl']['entry']['start'][$togglTimeEntry->id] = new \DateTime($togglTimeEntry->start);
-                $results[$jiraIssueId]['Toggl']['entry']['stop'][$togglTimeEntry->id] = new \DateTime($togglTimeEntry->stop);
-                $results[$jiraIssueId]['Toggl']['entry']['at'][$togglTimeEntry->id] = new \DateTime($togglTimeEntry->at);
+                $results[$jiraIssueId]['Toggl']['entry']['stop'][$togglTimeEntry->id] = property_exists($togglTimeEntry, 'stop') ? new \DateTime($togglTimeEntry->stop) : new \DateTime($stopDateTime);
+                $results[$jiraIssueId]['Toggl']['entry']['at'][$togglTimeEntry->id] = property_exists($togglTimeEntry, 'at') ? new \DateTime($togglTimeEntry->at) : new \DateTime($stopDateTime);
             }
         }
         return $results;
     }
 
-    /**
-     * @param $results
-     * @return array
-     */
-    private function calculateStatistics($results): array
+    private function calculateStatistics(array $results, bool $acceptItemsWithoutTogglDuration = false, bool $acceptItemsWithoutJiraStoryPoints = false): array
     {
         $grandTotalDuration = 0;
         $grandTotalStoryPoints = 0;
@@ -159,11 +173,16 @@ class Statistics
 
         foreach ($results as $issueId => $totalByToggl) {
             // Skip tasks without duration (just in case)
-            if (!isset($totalByToggl['Toggl']['duration'])) {
+            if ($acceptItemsWithoutTogglDuration === false && !isset($totalByToggl['Toggl']['duration'])) {
                 continue;
             }
+
+            if(!array_key_exists('JIRA', $results[$issueId])) {
+                $results[$issueId]['JIRA'] = null;
+            }
+
             // Skip tasks without story points (just in case)
-            if (!isset($results[$issueId]['JIRA']['storyPoints'])) {
+            if ($acceptItemsWithoutJiraStoryPoints === false && !isset($results[$issueId]['JIRA']['storyPoints'])) {
                 continue;
             }
 
@@ -184,13 +203,17 @@ class Statistics
             /** @var \DateTime $stopMax */
             $stopMax = $results[$issueId]['Toggl']['entry']['stopMax'] = max($results[$issueId]['Toggl']['entry']['stop']);
 
-            $roundedStoryPoints = round($results[$issueId]['JIRA']['storyPoints'], 2);
-            if ($roundedStoryPoints === 0.00) {
-                continue;
-            }
-            $grandTotalDataTable['stats']['storyPointsAverage'][(string)$roundedStoryPoints]['startMin'][$startMin->format('U')] = round(round($totalByToggl['Toggl']['duration'], 2) / $roundedStoryPoints, 2);
-            $grandTotalDataTable['stats']['storyPointsAverage'][(string)$roundedStoryPoints]['stopMax'][$stopMax->format('U')] = round(round($totalByToggl['Toggl']['duration'], 2) / $roundedStoryPoints, 2);
 
+
+
+            $roundedStoryPoints = round($results[$issueId]['JIRA']['storyPoints'], 2);
+            if ($roundedStoryPoints !== 0.00) {
+                $grandTotalDataTable['stats']['storyPointsAverage'][(string)$roundedStoryPoints]['startMin'][$startMin->format('U')] = round(round($totalByToggl['Toggl']['duration'], 2) / $roundedStoryPoints, 2);
+                $grandTotalDataTable['stats']['storyPointsAverage'][(string)$roundedStoryPoints]['stopMax'][$stopMax->format('U')] = round(round($totalByToggl['Toggl']['duration'], 2) / $roundedStoryPoints, 2);
+            } else {
+                $grandTotalDataTable['stats']['storyPointsAverage'][(string)$roundedStoryPoints]['startMin'][$startMin->format('U')] = null;
+                $grandTotalDataTable['stats']['storyPointsAverage'][(string)$roundedStoryPoints]['stopMax'][$stopMax->format('U')] = null;
+            }
 
             //$stopMaxAsKey = $stopMax->format('U');
             $grandTotalDataTable['issues'][$issueId]['toggl_latest_end_date_formatted_for_jira_issue'] = $stopMax->format('Y-m-d H:i:s');
@@ -205,7 +228,13 @@ class Statistics
             $grandTotalDataTable['issues'][$issueId]['toggl_total_duration_in_seconds_under_jira_issue'] = round($totalByToggl['Toggl']['duration'], 2);
             $grandTotalDataTable['issues'][$issueId]['toggl_total_duration_in_minutes_under_jira_issue'] = round($totalByToggl['Toggl']['duration'] / 60, 2);
             $grandTotalDataTable['issues'][$issueId]['toggl_total_duration_in_hours_under_jira_issue'] = round($totalByToggl['Toggl']['duration'] / 60 / 60, 2);
-            $grandTotalDataTable['issues'][$issueId]['toggl_hours_per_one_jira_story_point'] = round(round($totalByToggl['Toggl']['duration'] / 60 / 60, 2) / round($results[$issueId]['JIRA']['storyPoints'], 2), 2);
+
+            if ($roundedStoryPoints !== 0.00) {
+                $grandTotalDataTable['issues'][$issueId]['toggl_hours_per_one_jira_story_point'] = round(round($totalByToggl['Toggl']['duration'] / 60 / 60, 2) / round($results[$issueId]['JIRA']['storyPoints'], 2), 2);
+            } else {
+                $grandTotalDataTable['issues'][$issueId]['toggl_hours_per_one_jira_story_point'] = null;
+            }
+
 
             $grandTotalDataTable['stats']['grand_total_story_points'] = round($grandTotalDataTable['stats']['grand_total_story_points'], 2) + round($results[$issueId]['JIRA']['storyPoints'], 2);
             $grandTotalDataTable['stats']['grand_total_toggl_hours_logged_under_story_points'] = round($grandTotalDuration / 60 / 60, 2);
@@ -240,7 +269,7 @@ class Statistics
     /**
      * @return array
      */
-    private function getToggleTimeEntriesThatHaveJiraIssueKeyMentioned(?string $jiraIssueKeyFromUser = null): array
+    public function getToggleTimeEntriesThatHaveJiraIssueKeyMentioned(?string $jiraIssueKeyFromUser = null): array
     {
         $toggl = new TogglApi(getenv('TOGGL_API_TOKEN'));
         $togglTimeEntries = $toggl->getTimeEntriesInRange(getenv('TOGGL_ENTRIES_FROM'), getenv('TOGGL_ENTRIES_TO'));
@@ -294,8 +323,8 @@ class Statistics
 
             // Total time
             // TODO: May seconds reach the level to overflow?
-            $tasksLoggedInToggl[$key]['total_seconds'] += $togglTimeEntry->duration;
-            $tasksLoggedInToggl[$key]['total_minutes'] += round($togglTimeEntry->duration / 60, 0);
+            $tasksLoggedInToggl[$key]['total_seconds'] += $duration = $this->getDuration($togglTimeEntry);
+            $tasksLoggedInToggl[$key]['total_minutes'] += round($this->getDuration($togglTimeEntry) / 60, 0);
         }
 
         return $tasksLoggedInToggl;
@@ -375,5 +404,23 @@ class Statistics
     {
         $buhalteriamsLt = new BuhalteriamsLt();
         return $buhalteriamsLt->getOfficialWorkingHours($earliestOfTheWeek, $latestOfTheWeek);
+    }
+
+    private function getDuration(\stdClass $togglTimeEntry): int
+    {
+        if($togglTimeEntry->duration >= 0) {
+            return (int)$togglTimeEntry->duration;
+        }
+
+        // If the timer is active (ticking) then duration is "minus something" (e.g. "-1542623996")
+        return 0;
+
+    }
+
+    public function getDataFromTogglAndJira(?array $jiraStatusesToInclude, ?bool $includeParentIssues)
+    {
+        $jiraIssueIdsOccurredInToggl = $this->getToggleTimeEntriesThatHaveJiraIssueKeyMentioned();
+        $results = $this->getJiraTasksInfo(array_keys($jiraIssueIdsOccurredInToggl), $jiraStatusesToInclude, $includeParentIssues);
+        return $this->appendToggleTimeEntriesToJiraTasksInfo($jiraIssueIdsOccurredInToggl, $results);
     }
 }

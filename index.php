@@ -3,6 +3,7 @@
 
 echo '<ul>';
 
+echo '<li><a href="myTasks.php">My Tasks</a></li>';
 echo '<li><a href="overtime.php">Overtime</a></li>';
 echo '<li><a href="workweek.php">Workweek</a></li>';
 echo '<li><a href="workday.php">Workday</a></li>';

@@ -18,12 +18,16 @@ $humanizedDayMatrix = Day::getHumanizedMatrix($fattySliceOfSortedMatrix);
 
 echo 'Working hours for a day, UTC+0 timezone, ' . count($humanizedDayMatrix) . ' items:<hr>';
 echo '<table>';
+
+echo
+    '<tr>' .
+    '<th>Hour</th>' .
+    '<th>Active Toggl tasks</th>' .
+    '</tr>';
+
 foreach ($humanizedDayMatrix as $row) {
     // For Google sheets
     $dataParts = explode(', ', $row);
     echo '<tr><td>' . $dataParts[0] . '</td><td>' . $dataParts[1] . '</td></tr>';
-
-    // For simple output
-    //echo '<tr><td>' . $row . '</td></tr>';
 }
 echo '<table>';

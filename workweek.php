@@ -22,6 +22,12 @@ $nextMinuteInMatrix = Week::getNextMinuteFromKeysOfMatrix($humanizedWorkweekMatr
 
 echo 'Working minutes for a workweek, UTC+0 timezone, ' . count($humanizedWorkweekMatrix) . ' items:<hr>';
 echo '<table>';
+echo
+    '<tr>' .
+    '<th>Week time</th>' .
+    '<th>Week minute</th>' .
+    '<th>Active Toggl tasks</th>' .
+    '</tr>';
 
 foreach ($humanizedWorkweekMatrix as $workweekMinute => $row) {
 
@@ -34,7 +40,5 @@ foreach ($humanizedWorkweekMatrix as $workweekMinute => $row) {
     $dataParts = explode(', ', $row);
     echo '<tr><td ' . $style . '>' . $dataParts[0] . '</td><td ' . $style . '>' . explode(': ', $dataParts[1])[1] . '</td><td ' . $style . '>' . explode(': ', $dataParts[2])[1] . '</td></tr>';
 
-    // For simple output
-    //echo '<tr><td>' . $row . '</td></tr>';
 }
 echo '<table>';
